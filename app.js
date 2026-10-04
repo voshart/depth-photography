@@ -104,7 +104,8 @@ function setBusy(on,text='Processing…'){
 }
 function touchSettings(){activePreset='';syncPreset();queueRender();}
 function syncPreset(){document.querySelectorAll('[data-preset]').forEach(b=>b.classList.toggle('active',b.dataset.preset===activePreset));}
-function syncControls(){ for(const key of controls){
+function syncControls(){
+ for(const key of controls){
   const input=$(key),base=key.replace(/2$/,'');
   input.value=params[key];
   const pct=(params[key]-Number(input.min))/(Number(input.max)-Number(input.min))*100;
@@ -1103,7 +1104,8 @@ $('loadDepth1DialogBtn').addEventListener('click',()=>{$('depthDialog').close();
 for(const id of ['loadDepth2Btn','loadDepth2DialogBtn'])$(id).addEventListener('click',()=>{if(ready&&!working&&!exporting)$('depth2Input').click();});
 $('depth2Input').addEventListener('change',event=>{const file=event.target.files[0];event.target.value='';if(file)loadDepth2Image(file,file.name);});
 for(const id of ['depthOptionsBtn','depthSettingsLink'])$(id).addEventListener('click',openDepthOptions);
-for(const id of ['closeDepth','depthDone'])$(id).addEventListener('click',()=>$('depthDialog').close());$('depthDialog').addEventListener('click',event=>{const r=$('depthDialog').getBoundingClientRect();if(event.clientX<r.left||event.clientX>r.right||event.clientY<r.top||event.clientY>r.bottom)$('depthDialog').close();});
+for(const id of ['closeDepth','depthDone'])$(id).addEventListener('click',()=>$('depthDialog').close());
+$('depthDialog').addEventListener('click',event=>{const r=$('depthDialog').getBoundingClientRect();if(event.clientX<r.left||event.clientX>r.right||event.clientY<r.top||event.clientY>r.bottom)$('depthDialog').close();});
 $('depthWeight').addEventListener('input',()=>{if(working||exporting){syncDepthControls();return;}secondaryDepth.settings.weight=clamp(Number($('depthWeight').value),0,100);touchDepthMix();});
 $('depth2Enabled').addEventListener('change',()=>{if(working||exporting){syncDepthControls();return;}secondaryDepth.settings.enabled=$('depth2Enabled').checked;touchDepthMix();});
 $('depthHalfBtn').addEventListener('click',()=>{if(!secondaryDepth.image||working||exporting)return;secondaryDepth.settings.enabled=true;secondaryDepth.settings.weight=50;touchDepthMix();});
@@ -1368,7 +1370,7 @@ window.addEventListener('paste',event=>{
 });
 window.addEventListener('keydown',event=>{
  const tag=event.target.tagName,editing=['INPUT','SELECT','TEXTAREA'].includes(tag)||event.target.isContentEditable;
- const modal=$('helpDialog').open||$('settingsDialog').open||$('detailDialog').open||$('depthDialog').open||$('planeDialog').open;
+ const modal=Boolean(document.querySelector('dialog[open]')); 
  if((event.ctrlKey||event.metaKey)&&event.key.toLowerCase()==='o'&&!modal){event.preventDefault();if(!working&&!exporting)$(event.shiftKey?detailId('detailInput'):'fileInput').click();return;}
  if(modal)return;
  if(event.key==='Escape'&&picking){picking=false;updateView();return;}
@@ -1398,3 +1400,39 @@ $('busyOverlay').hidden=true;
 syncControls();
 $('canvasHint').textContent='Open or drop a depth map to begin.';
 updateView();
+
+// Optional animation UI/code loads only on demand; PNG remains independent.
+const videoButton = document.createElement('button');
+videoButton.id = 'videoBtn'; videoButton.type = 'button'; videoButton.textContent = 'MP4';
+videoButton.title = 'Animate a depth band: start → turnaround → start';
+videoButton.setAttribute('aria-label', 'Export a depth boomerang as MP4');
+$('exportBtn').after(videoButton);
+const syncVideoButton = () => { videoButton.disabled = $('exportBtn').disabled; };
+new MutationObserver(syncVideoButton).observe($('exportBtn'), { attributes: true, attributeFilter: ['disabled'] });
+syncVideoButton();
+videoButton.addEventListener('click', async () => {
+ if (!ready || working || exporting) return;
+ exporting = true; version++; setBusy(true, 'Animation settings open…');
+ try {
+  const { openBoomerang } = await import('./boomerang.js');
+  const detailSettings = detailSettingsSnapshot(), mix = depthMixSnapshot();
+  const snapshot = { params: snapshotParams(), mode: resolvedMode, width: sourceWidth, height: sourceHeight, name: sourceName, sourceVersion: loadToken, focus: activeFocus, previewWidth, previewHeight, details: detailSettings, depthMix: mix, depth2Mode: secondaryDepth.mode };
+  await openBoomerang({
+   snapshot,
+   preview: async parameters => {
+    const result = await engine.request('render', { params: parameters, details: detailSettings, depthMix: mix });
+    return result.buffer;
+   },
+   makeBitmaps: async () => {
+    const images = { source: null, depth2: null, details: [null, null] };
+    try {
+     images.source = await createImageBitmap(sourceImage);
+     if (mix.enabled && mix.weight > 0) images.depth2 = await createImageBitmap(secondaryDepth.image);
+     for (let i = 0; i < 2; i++) if (detailLayers[i].image && detailSettings[i].enabled && detailSettings[i].opacity > 0) images.details[i] = await createImageBitmap(detailLayers[i].image);
+     return images;
+    } catch (error) { for (const image of [images.source, images.depth2, ...images.details]) image?.close(); throw error; }
+   }
+  });
+ } catch (error) { toast(error.message || 'Animation export could not open. PNG export is still available.', true); }
+ finally { exporting = false; setBusy(false); queueRender(); }
+});

@@ -1,0 +1,34 @@
+/* Animation settings share the neutral Lossless Crop visual language. */
+#boomerangDialog{max-width:900px;padding:20px;max-height:calc(100dvh - 28px)}
+#boomerangDialog .dialog-head{margin-bottom:12px}
+.bm-layout{display:grid;grid-template-columns:minmax(0,1fr) minmax(240px,.9fr);gap:20px;align-items:start}
+.bm-visual{position:sticky;top:0;background:var(--paper);min-width:0;z-index:1}
+.bm-stage{height:min(49dvh,410px);min-height:140px;background:#262626;display:flex;align-items:center;justify-content:center;overflow:hidden;border:1px solid var(--rule)}
+.bm-stage canvas,.bm-stage video{display:block;max-width:100%;max-height:100%;width:auto;height:auto;object-fit:contain}
+.bm-playbar{display:flex;gap:8px;align-items:center;margin-top:8px}.bm-playbar button{font-size:11px;min-width:54px}
+.bm-playbar input{min-width:0;flex:1;accent-color:var(--ink);height:28px}
+#boomerangDialog .bm-time{display:block;font:10px/1.5 var(--mono);color:var(--ink-2);margin-top:5px}
+#boomerangDialog .bm-note{font:11px/1.5 var(--sans);color:var(--ink-2);margin:8px 0}
+.bm-fields{border:0;padding:0;margin:0;min-width:0}
+.bm-fields label{display:block;font-size:11px;line-height:1.5;color:var(--ink-2);margin-bottom:3px}
+.bm-fields select,.bm-fields input[type=number]{width:100%;min-width:0;height:32px;padding:5px 7px;background:var(--paper-pure);color:var(--ink);border:1px solid var(--rule);font:12px var(--mono);border-radius:0}
+.bm-pair{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px}
+.bm-fields .bm-row{margin-top:10px}.bm-end-buttons{display:flex;gap:5px;margin-top:5px}
+.bm-end-buttons button{font:10px var(--sans);padding:4px 6px;min-height:28px;flex:1}
+.bm-tools{display:flex;gap:6px;margin-top:9px}.bm-tools button{font-size:11px;padding:4px 7px}
+#boomerangDialog .bm-summary{font:10px/1.65 var(--mono);margin:12px 0 8px;color:var(--ink);white-space:pre-line}
+#boomerangDialog .bm-warning{color:var(--warning)}
+#boomerangDialog .bm-error{color:var(--danger)}
+.bm-progress{border-top:1px solid var(--rule);padding-top:10px;margin-top:12px}
+.bm-progress progress{width:100%;height:8px;accent-color:var(--ink)}
+#boomerangDialog .bm-status{min-height:2.8em;font:11px/1.4 var(--sans);margin:6px 0;color:var(--ink-2)}
+#boomerangDialog .bm-actions{display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap;margin-top:8px}
+.bm-download{display:inline-flex;align-items:center;justify-content:center;min-height:32px;padding:.4rem .65rem;font-size:12px;text-decoration:none;background:var(--ink);color:var(--paper);border:1px solid var(--ink)}
+#boomerangDialog .bm-fields:disabled{opacity:.55}
+@media(max-width:600px){
+ #boomerangDialog{padding:14px;width:calc(100% - 20px);max-height:calc(100dvh - 20px)}
+ .bm-layout{grid-template-columns:1fr;gap:8px}.bm-stage{height:170px;min-height:100px}
+ .bm-visual{top:-14px;padding-top:7px;padding-bottom:4px}.bm-visual .bm-note{display:none}
+ .bm-playbar{margin-top:5px}.bm-pair{margin-top:8px;gap:9px}
+}
+@media(orientation:landscape) and (max-height:500px){.bm-layout{grid-template-columns:1fr 1fr;gap:14px}.bm-stage{height:180px}.bm-visual .bm-note{display:none}}

@@ -157,16 +157,17 @@ export function createProcessor() {
     }
     return data;
   }
-  function blendDetail(base,texture,settings) {
+  function blendDetail(base,texture,settings,compact=false) {
     if(!texture||!settings||!settings.enabled||!(settings.opacity>0))return base;
-    if(texture.length!==base.length)throw new Error('The detail layer must be aligned to the depth image.');
+    if(texture.length!==(compact?base.length/2:base.length))throw new Error('The detail layer must be aligned to the depth image.');
     const opacity=clamp(settings.opacity/100,0,1),overlay=settings.blend==='overlay';
     // Work in the same display-referred, 8-bit space as the focus image.
     // Interpolate the blend result with the base. Preserve depth alpha exactly.
     // A transparent detail pixel or an uncovered Fit margin has no effect.
     for(let i=0;i<base.length;i+=4) {
-      if(!base[i+3]||!texture[i+3])continue;
-      const b=base[i]/255,d=texture[i]/255,a=opacity*texture[i+3]/255;
+      const j=compact?i/2:i,alpha=texture[j+(compact?1:3)];
+      if(!base[i+3]||!alpha)continue;
+      const b=base[i]/255,d=texture[j]/255,a=opacity*alpha/255;
       const mixed=overlay?(b<=.5?2*b*d:1-2*(1-b)*(1-d)):b*d;
       const value=Math.round(clamp(b+a*(mixed-b))*255);
       base[i]=base[i+1]=base[i+2]=value;
@@ -252,5 +253,5 @@ export function createProcessor() {
     }
     throw new Error('Unknown processing operation.');
   }
-  return {process,tone,colour,grayscale,blendDetail,blendDepth,planeNormal,focusPlane,planeDistance,windowValue,shapeTone,applyFocus,LAST,INVALID};
+  return {process,decode,tone,colour,grayscale,blendDetail,blendDepth,planeNormal,focusPlane,planeDistance,windowValue,shapeTone,applyFocus,LAST,INVALID};
 }
