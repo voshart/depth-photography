@@ -15,6 +15,20 @@ The core idea for using depth maps as a photographic editing medium was inspired
 - Responsive light/dark interface
 - Local browser processing; images are not uploaded by the app
 
+## Generate a depth map
+
+**Recommended as of 4 October 2026:** [Marigold V2](https://github.com/huawei-bayerlab/marigold-v2) is the depth model recommended for this workflow. It produces sharp monocular depth estimates and the project describes its current results as state of the art.
+
+You can try the [public Marigold V2 Hugging Face demo](https://huggingface.co/spaces/toshas/Marigold-V2), but treat it as a **non-private third-party service**.
+
+> **PRIVACY WARNING:** Any image uploaded to the public demo leaves this app and is processed on infrastructure outside your control. Do not upload private, confidential, identifying, client, unreleased, or otherwise sensitive images. This project cannot verify or guarantee how a third-party demo retains or uses uploads.
+
+For sensitive work, **download the official code and weights and run Marigold V2 locally**:
+
+- [Marigold V2 source / local inference](https://github.com/huawei-bayerlab/marigold-v2)
+- The official repository currently states that inference needs about **17 GB of GPU memory at 1024²** and **29 GB at 2048²**.
+- This recommendation is deliberately date-stamped. Monocular depth is moving quickly, so a better model may replace it within weeks or months.
+
 ## Project structure
 
 The site is dependency-free and designed for static hosting:
