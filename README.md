@@ -2,35 +2,60 @@
 
 A browser-based depth-map editor that turns depth data into selective black-and-white focus planes, with adjustable depth blending, 3D plane rotation, and image-detail overlays.
 
-The app is a standalone HTML file: open `index.html` directly in a modern browser. Processing stays local in the browser.
+The core idea for using depth maps as a photographic editing medium was inspired by [Vathography](https://vathography.com/).
 
 ## Features
 
-- Select one or two depth focus bands and shape their width and softness
-- Mix two depth maps to reduce uncorrelated depth noise
-- Add up to two grayscale detail layers with Multiply or Overlay blending
+- One or two depth focus bands with adjustable width and softness
+- Optional averaging of two depth maps to reduce uncorrelated depth noise
+- Two grayscale detail layers with Multiply or Overlay blending
 - Advanced 3D focus-plane rotation and positioning
-- Zoom the preview up to 400% with pan controls
-- Export the processed result as PNG
-- Responsive light/dark interface inspired by the visual language of Lossless Crop
+- Preview zoom up to 400% with pan controls
+- Full-resolution PNG export
+- Responsive light/dark interface
+- Local browser processing; images are not uploaded by the app
 
-## Idea and inspiration
+## Project structure
 
-The core idea for using depth maps as a photographic editing medium was inspired by [Vathography](https://vathography.com/).
+The site is dependency-free and designed for static hosting:
 
-This project explores that idea as a lightweight browser tool, without requiring Blender for the basic workflow.
+- `index.html` — interface markup
+- `app.css` — interface styling
+- `app.js` — UI state, canvas interaction, import/export and orchestration
+- `processor.js` — shared depth and pixel-processing implementation
+- `processor.worker.js` — worker entry point for off-main-thread processing
+- `assets/example-depth.jpg` — optional example depth map, loaded only when requested
+- `assets/example-normal.jpg` — optional example detail/normal map, loaded only when requested
 
-## Usage
+The example files retain their original JPEG bytes. They were previously embedded in the HTML as Base64 data; separating them allows independent browser/CDN caching and avoids downloading them until the example is requested.
 
-1. Open `index.html`.
-2. Load a depth map.
-3. Pick a depth or enable a second focus.
-4. Optionally mix a second depth map or add detail layers.
-5. Use Advanced mode for a rotated 3D focus plane.
-6. Export the final PNG.
+## Run locally
+
+Because the app uses JavaScript modules and a module Worker, serve the repository over HTTP rather than opening `index.html` directly from `file://`.
+
+For example:
+
+```sh
+python3 -m http.server 8000
+```
+
+Then open `http://localhost:8000/`.
+
+## Cloudflare Pages
+
+This repository is deploy-ready; there is no package install or compilation step.
+
+Recommended Pages settings:
+
+- Framework preset: `None`
+- Production branch: `main`
+- Build command: `exit 0`
+- Build output directory: `/` (repository root)
+- Root directory: leave blank
+- Environment variables: none
 
 ## Notes
 
 - Colourized depth maps are decoded approximately; lossless grayscale depth maps generally produce cleaner results.
-- The current browser pipeline is still an 8-bit workflow; 16-bit depth support is not yet implemented.
-- Images are processed locally and are not uploaded by the app.
+- The current browser pipeline is an 8-bit workflow; native 16-bit depth support is not yet implemented.
+- No third-party runtime dependencies, frameworks, CDNs, external fonts, or remote scripts are required.
