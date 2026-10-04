@@ -98,7 +98,9 @@ function graphTheme(){
 function toast(message,error=false){clearTimeout(toastTimer);$('toast').textContent=message;$('toast').classList.toggle('error',error);$('toast').classList.add('show');toastTimer=setTimeout(()=>$('toast').classList.remove('show'),error?6500:3500);}
 function setBusy(on,text='Processing…'){
  working=on;$('busyOverlay').hidden=!on;$('busyText').textContent=text;
- $('exportBtn').disabled=on||!ready||exporting;
+ const exportLocked=on||!ready||exporting;
+ $('exportBtn').disabled=exportLocked;
+ if($('videoBtn'))$('videoBtn').disabled=exportLocked;
  for(const id of ['openBtn','exampleBtn','encoding','resetBtn','loadLookBtn'])$(id).disabled=on||exporting;
  syncDetailControls();syncDepthControls();syncPlaneControls();syncNavigation();
 }
@@ -1410,7 +1412,7 @@ const videoButton = $('videoBtn') || (() => {
  $('exportBtn').before(button);
  return button;
 })();
-const syncVideoButton = () => { videoButton.disabled = $('exportBtn').disabled; };
+const syncVideoButton = () => { videoButton.disabled = !ready || working || exporting; };
 new MutationObserver(syncVideoButton).observe($('exportBtn'), { attributes: true, attributeFilter: ['disabled'] });
 syncVideoButton();
 videoButton.addEventListener('click', async () => {
