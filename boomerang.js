@@ -1,12 +1,12 @@
-import { videoPlan, frameParams, bounceAt, endpointBounds, sweepEndpoints, currentPosition, isPlane } from './boomerang-core.js';
+import { videoPlan, frameParams, bounceAt, endpointBounds, sweepEndpoints, currentPosition, isPlane } from './boomerang-core.js?v=20261004-3';
 
 let saved = { duration: 4, fps: 30, motion: 'ease', codec: 'avc', resolution: 'native', quality: 'high' };
 const endpoints = new Map();
-const workerURL = new URL('./boomerang.worker.js', import.meta.url);
+const workerURL = new URL('./boomerang.worker.js?v=20261004-3', import.meta.url);
 let stylesheet = null;
 function loadStyles() {
   if (!stylesheet) {
-    const link = document.createElement('link'); link.rel = 'stylesheet'; link.href = new URL('./boomerang.css', import.meta.url).href;
+    const link = document.createElement('link'); link.rel = 'stylesheet'; link.href = new URL('./boomerang.css?v=20261004-3', import.meta.url).href;
     stylesheet = new Promise((resolve, reject) => { link.onload = resolve; link.onerror = () => { stylesheet = null; link.remove(); reject(new Error('Animation styles did not load. Reload the page and try again.')); }; });
     document.head.append(link);
   }
