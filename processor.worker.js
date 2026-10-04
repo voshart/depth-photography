@@ -1,5 +1,5 @@
 'use strict';
-import { createProcessor } from './processor.js';
+import { createProcessor } from './processor.js?v=20261004-3';
 
 const processor=createProcessor();
 self.onmessage=event=>{
