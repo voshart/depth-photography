@@ -2,7 +2,7 @@
  * do not duplicate depth state, image buffers, processing or export code.
  * This import also ensures the editor has installed its event handlers first.
  */
-import './app.js';
+import './app.js?v=20261004-2';
 
 const $ = id => document.getElementById(id);
 const toolbar = document.querySelector('.preview-toolbar');
@@ -129,6 +129,7 @@ function syncWorkspace() {
     if (button.getAttribute('aria-pressed') === 'true') viewSelect.value = option.value;
   }
   viewSelect.disabled = locked;
+  if ($('videoBtn')) $('videoBtn').disabled = $('exportBtn').disabled;
   setAttr(document.body, 'data-compare', viewSelect.value === 'compare');
   focusRail.disabled = locked;
   detailRail.disabled = $('loadDetailBtn2').disabled;
