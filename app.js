@@ -1402,11 +1402,14 @@ $('canvasHint').textContent='Open or drop a depth map to begin.';
 updateView();
 
 // Optional animation UI/code loads only on demand; PNG remains independent.
-const videoButton = document.createElement('button');
-videoButton.id = 'videoBtn'; videoButton.type = 'button'; videoButton.textContent = 'MP4';
-videoButton.title = 'Animate a depth band: start → turnaround → start';
-videoButton.setAttribute('aria-label', 'Export a depth boomerang as MP4');
-$('exportBtn').after(videoButton);
+const videoButton = $('videoBtn') || (() => {
+ const button = document.createElement('button');
+ button.id = 'videoBtn'; button.type = 'button'; button.textContent = 'MP4';
+ button.title = 'Animate a depth band: start → turnaround → start';
+ button.setAttribute('aria-label', 'Export a depth boomerang as MP4');
+ $('exportBtn').before(button);
+ return button;
+})();
 const syncVideoButton = () => { videoButton.disabled = $('exportBtn').disabled; };
 new MutationObserver(syncVideoButton).observe($('exportBtn'), { attributes: true, attributeFilter: ['disabled'] });
 syncVideoButton();
