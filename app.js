@@ -1,4 +1,4 @@
-import { createProcessor } from './processor.js';
+import { createProcessor } from './processor.js?v=20261004-3';
 
 'use strict';
 /* DEPTH / FOCUS
@@ -38,7 +38,7 @@ const local=createProcessor();
 function createEngine() {
   let worker=null,sequence=0,pending=new Map();
   try {
-    worker=new Worker(new URL('./processor.worker.js', import.meta.url),{type:'module'});
+    worker=new Worker(new URL('./processor.worker.js?v=20261004-3', import.meta.url),{type:'module'});
     worker.onmessage=event=>{const {id,result,error}=event.data,item=pending.get(id);if(!item)return;pending.delete(id);error?item.reject(new Error(error)):item.resolve(result);};
     worker.onerror=event=>{event.preventDefault();for(const item of pending.values())item.reject(new Error('The image processor stopped. Try reloading the image or using a smaller file.'));pending.clear();worker.terminate();worker=null;};
   }catch(_){worker=null;}
@@ -1419,7 +1419,7 @@ videoButton.addEventListener('click', async () => {
  if (!ready || working || exporting) return;
  exporting = true; version++; setBusy(true, 'Animation settings open…');
  try {
-  const { openBoomerang } = await import('./boomerang.js');
+  const { openBoomerang } = await import('./boomerang.js?v=20261004-3');
   const detailSettings = detailSettingsSnapshot(), mix = depthMixSnapshot();
   const snapshot = { params: snapshotParams(), mode: resolvedMode, width: sourceWidth, height: sourceHeight, name: sourceName, sourceVersion: loadToken, focus: activeFocus, previewWidth, previewHeight, details: detailSettings, depthMix: mix, depth2Mode: secondaryDepth.mode };
   await openBoomerang({
