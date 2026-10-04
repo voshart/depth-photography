@@ -1,5 +1,5 @@
 /* Native-size animation cache. Decode and align once; never store raw frame lists. */
-import { createProcessor } from './processor.js';
+import { createProcessor } from './processor.js?v=20261004-3';
 const pause = () => new Promise(resolve => setTimeout(resolve, 0));
 function aligned(ctx, image, w, h, fit, y, rows) {
   ctx.clearRect(0, 0, w, rows);
@@ -14,6 +14,7 @@ function aligned(ctx, image, w, h, fit, y, rows) {
 }
 export async function compileInputs(snapshot, plan, images, progress = () => {}) {
   const p = createProcessor(), { width: w, height: h } = plan, count = w * h;
+  if (typeof p.decode !== 'function') throw new Error('The animation processor is out of date. Reload the page after the current deployment finishes.');
   const depth = new Uint16Array(count), alpha = new Uint8Array(count);
   const details = images.details.map(image => image ? new Uint8Array(count * 2) : null);
   const rows = Math.max(1, Math.min(128, Math.floor(262144 / w)));
