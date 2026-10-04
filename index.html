@@ -9,6 +9,7 @@
 <meta content="Offline depth-map editing with two depth inputs, two 3D focus planes, two detail layers and 400% canvas zoom. A neutral, system-themed workbench." name="description"/>
 <title>Depth / Focus 10</title>
 <link rel="stylesheet" href="./app.css">
+<link rel="stylesheet" href="./workspace.css">
 <meta content="#f5f5f5" media="(prefers-color-scheme: light)" name="theme-color"/><meta content="#121212" media="(prefers-color-scheme: dark)" name="theme-color"/><meta content="light dark" name="color-scheme"/></head>
 <body>
 <svg aria-hidden="true" style="position:absolute;width:0;height:0;overflow:hidden" xmlns="http://www.w3.org/2000/svg"><defs>
@@ -216,7 +217,7 @@
 <p class="mini-note"><strong>50%</strong> gives equal weight to both valid maps. <strong>0%</strong> keeps Map 1. <strong>100%</strong> uses Map 2 where it covers Map 1. Transparent or missing pixels in Map 2 leave Map 1 unchanged; partially transparent pixels reduce Map 2’s weight. Map 1’s transparency is preserved.</p>
 <p class="mini-note">Hue is a colour-selection mode, not a reliable linear depth scale. Mixing is bypassed if either input is read as hue. Select the correct Spectral or grayscale encoding rather than forcing an unrelated palette.</p>
 <p class="mini-note">The preview menu on the deck lets you inspect Mixed, Map 1 or Map 2 without changing their weights. The eyedropper always samples the active combined depth. Use Compare for a split against the final result. Opening another Map 1 pauses Map 2 and both detail layers to avoid silently mixing unrelated scenes.</p>
-<p class="mini-note">Averaging can reduce differing random errors, but identical errors remain. Misaligned edges or mismatched depth scales can make the result worse. Loading the same map twice provides no independent noise information.</p>
+<p class="mini-note">Averaging can reduce differing random errors, but identical errors remain. Misaligned boundaries can double or smear. Loading the same map twice provides no independent noise information.</p>
 <div class="depth-actions"><button class="quiet" id="removeDepth2Btn">Remove Map 2</button><button class="primary" id="depthDone" style="margin-left:auto">Done</button></div>
 </dialog>
 <dialog aria-labelledby="detailDialogTitle" id="detailDialog">
@@ -292,4 +293,5 @@
 <p style="margin-top:20px;font-size:11px">Inspired by the depth-to-tone focus described at <a href="https://vathography.com/" rel="noopener noreferrer" target="_blank">Vathography</a>. This is an independent tool, not an official Vathography app. Spectral colours: <a href="https://colorbrewer2.org/" rel="noopener noreferrer" target="_blank">ColorBrewer</a>, Cynthia Brewer, Mark Harrower &amp; The Pennsylvania State University. These links are optional; the editor works offline.</p>
 </dialog>
 <script type="module" src="./app.js"></script>
+<script type="module" src="./workspace.js"></script>
 </body></html>

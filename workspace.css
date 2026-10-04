@@ -1,0 +1,99 @@
+/* Compact controls, more canvas. Colour still denotes only image data,
+   focus identity, keyboard focus or a warning. No processing-related rules. */
+.compact-workspace .navigation-row{display:flex;align-items:center;gap:8px;min-width:0;flex:none}
+.compact-workspace .preview-toolbar{flex:0 1 auto;min-width:0}
+.view-control{display:block;min-width:0}
+#viewSelect{min-width:92px;width:111px;max-width:100%;height:32px;font-size:12px;padding:4px 7px}
+.compact-workspace .zoom-toolbar{min-width:0;flex:none}
+.compact-workspace .zoom-help,.compact-workspace .nav-separator{display:none}
+.compact-workspace .viewport{padding:10px}
+.compact-workspace:not([data-compare=true]) .frame-label{display:none}
+/* Keep changing hints accessible without a permanently reserved visual row. */
+.compact-workspace .canvas-hint{position:absolute!important;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;left:0;top:0;bottom:auto}
+.workspace-pick-notice{position:absolute;top:8px;left:50%;transform:translateX(-50%);padding:5px 8px;font:11px/1.4 var(--sans);color:#eee;background:#202020dc;pointer-events:none;z-index:10;white-space:nowrap}
+.workspace-empty{position:absolute;inset:0;display:flex;flex-direction:column;justify-content:center;align-items:center;gap:13px;text-align:center;color:var(--canvas-ink);font-size:14px;padding:20px}
+.workspace-empty>div{display:flex;gap:8px;flex-wrap:wrap;justify-content:center}
+.workspace-empty .mini-note{color:var(--canvas-muted);font-size:11px;margin:0}
+.workspace-information{border-bottom:1px solid var(--rule);padding-bottom:12px;margin-bottom:15px}
+.workspace-information summary{font-size:12px;line-height:1.5;cursor:pointer}
+.workspace-information .preview-bottom{display:flex;flex-direction:column;align-items:flex-start;gap:3px;padding:10px 0 5px;border:0;font:11px/1.5 var(--mono);min-height:0}
+.workspace-information .preview-bottom>span:not([id]){display:none}
+.workspace-information .filename{white-space:normal;max-width:none;overflow-wrap:anywhere}
+.workspace-information .app-footer{display:flex;gap:8px;flex-wrap:wrap;padding:5px 0;font-size:11px}
+.workspace-information .mini-note{margin-top:6px}
+.compact-workspace .focus-cards[data-single=true],.compact-workspace .detail-cards[data-single=true]{grid-template-columns:minmax(0,1fr) 40px}
+.secondary-rail{min-width:0;max-width:none;width:40px;align-self:stretch;height:100%;padding:9px 4px;display:flex;flex-direction:column;justify-content:flex-start;align-items:center;gap:9px;border:1px solid var(--rule);background:var(--paper-2);color:var(--ink-2)}
+.secondary-rail .rail-plus{font:20px/22px var(--sans);color:var(--ink)}
+.secondary-rail .rail-label{writing-mode:vertical-rl;font:600 11px/1.1 var(--sans);letter-spacing:.1px}
+#expandFocusB .rail-label{border-top:3px solid var(--focus-b);padding-top:6px}
+.secondary-rail:hover:not(:disabled){color:var(--ink);border-color:var(--ink)}
+.secondary-rail:focus-visible{outline-offset:-3px}
+.secondary-rail[data-drag=true]{outline:2px dashed var(--focus);outline-offset:-4px}
+.compact-workspace .collapse-detail{width:22px;min-width:22px;height:26px;min-height:26px;padding:0;font:18px/1 var(--sans);margin-left:auto}
+.compact-workspace .collapse-detail:not([hidden])+.icon-button{margin-left:0}
+.compact-workspace .focus-cards[data-single=true] .control{display:grid;grid-template-columns:75px minmax(0,1fr);align-items:center;gap:8px;margin-top:3px}
+.compact-workspace .focus-cards[data-single=true] .control label{display:flex;flex-direction:column;align-items:flex-start;gap:1px;margin:0}
+.compact-workspace .detail-cards[data-single=true] .detail-opacity{display:grid;grid-template-columns:75px minmax(0,1fr);gap:8px;align-items:center}
+.compact-workspace .detail-cards[data-single=true] .detail-opacity label{flex-direction:column;align-items:flex-start;gap:1px;margin:0}
+.compact-workspace .detail-cards[data-single=true] .detail-tools select{width:auto;flex:1}
+
+@media(max-width:820px),(max-width:1024px) and (orientation:portrait){
+ .compact-workspace .workspace-bar{grid-template-columns:minmax(0,1fr) auto;grid-template-rows:34px 32px;gap:6px 8px;padding:calc(6px + env(safe-area-inset-top)) max(10px,env(safe-area-inset-right)) 7px max(10px,env(safe-area-inset-left))}
+ .compact-workspace .navigation-row{grid-row:2;grid-column:1/-1;gap:7px;width:100%;min-width:0}
+ .compact-workspace .navigation-row .preview-toolbar{display:block;grid-row:auto;grid-column:auto;flex:1;min-width:80px}
+ .compact-workspace .navigation-row #viewSelect{min-width:0;width:100%;height:32px;min-height:32px}
+ .compact-workspace .navigation-row .zoom-toolbar{grid-row:auto;grid-column:auto;gap:5px;flex:none}
+ .compact-workspace .zoom-toolbar button,.compact-workspace .zoom-toolbar select{height:32px;min-height:32px}
+ .compact-workspace .zoom-toolbar .zoom-step{width:25px;min-width:25px}
+ .compact-workspace .zoom-toolbar select{width:85px;font-size:10px}
+ .compact-workspace #zoomFitBtn{padding:4px 7px}
+ .compact-workspace #panBtn{width:33px;min-width:33px;padding:5px}
+ .compact-workspace .pan-text{display:none}
+ .compact-workspace .top-actions{gap:5px}
+ .compact-workspace .top-actions #exportText{font-size:0}
+ .compact-workspace .top-actions #exportText:after{content:'PNG';font:600 11px/1 var(--sans)}
+ .compact-workspace .top-actions #exportBtn{gap:4px;padding:5px 7px}
+ .compact-workspace .top-actions #exportBtn svg{width:14px;height:14px}
+ .compact-workspace .viewport,.compact-workspace[data-advanced=true] .viewport{padding:6px}
+ .compact-workspace .sidebar{max-height:calc(100dvh - 310px - env(safe-area-inset-top))}
+ .compact-workspace[data-advanced=true] .sidebar{max-height:calc(100dvh - 356px - env(safe-area-inset-top))}
+ .compact-workspace .focus-cards[data-single=true] .control{grid-template-columns:75px minmax(0,1fr);margin-top:1px}
+ .compact-workspace .control input[type=range]{height:28px}
+ .compact-workspace .focus-cards[data-single=true] .control label,.compact-workspace .detail-cards[data-single=true] .detail-opacity label{font-size:11px;line-height:12px}
+ .compact-workspace .focus-cards[data-single=true] .control output,.compact-workspace .detail-cards[data-single=true] .detail-opacity output{font-size:10px}
+ .workspace-information .app-footer{display:flex}
+}
+@media(min-width:821px) and (max-width:1190px) and (orientation:landscape){
+ .compact-workspace .navigation-row{order:1;flex-basis:100%}
+ .compact-workspace .top-actions{order:0;margin-left:auto}
+ .compact-workspace .navigation-row .zoom-toolbar{flex-basis:auto}
+}
+@media(orientation:landscape) and (min-width:480px) and (max-height:600px){
+ .compact-workspace .workspace-bar{display:flex;gap:5px;flex-wrap:wrap;padding:4px 7px}
+ .compact-workspace .tool-panel-header{display:none}
+ .compact-workspace .mobile-brand{display:block;order:0;font:760 12px/1.2 var(--sans);white-space:nowrap}
+ .compact-workspace .top-actions{order:0;margin-left:auto}
+ .compact-workspace .navigation-row{order:1;flex-basis:100%;gap:6px}
+ .compact-workspace .navigation-row .preview-toolbar{flex:1;order:0;min-width:72px}
+ .compact-workspace .navigation-row .zoom-toolbar{order:0;flex-basis:auto;gap:4px}
+ .compact-workspace .navigation-row #viewSelect{height:28px;min-height:28px;width:100%;min-width:0;font-size:10px}
+ .compact-workspace .zoom-toolbar button,.compact-workspace .zoom-toolbar select{height:28px;min-height:28px}
+ .compact-workspace .zoom-toolbar select{width:78px}
+ .compact-workspace #panBtn{width:29px;min-width:29px;padding:4px}
+ .compact-workspace .pan-text{display:none}
+ .compact-workspace .viewport,.compact-workspace[data-advanced=true] .viewport{padding:5px}
+ .compact-workspace .sidebar,.compact-workspace[data-advanced=true] .sidebar{max-height:none}
+ .compact-workspace .control input[type=range]{height:24px}
+ .compact-workspace .focus-cards[data-single=true] .control{grid-template-columns:65px minmax(0,1fr)}
+ .compact-workspace .detail-cards[data-single=true] .detail-opacity{grid-template-columns:65px minmax(0,1fr)}
+}
+@media(max-width:355px) and (orientation:portrait){
+ .compact-workspace .workspace-bar{padding-left:8px;padding-right:8px;column-gap:4px}
+ .compact-workspace .mobile-brand{font-size:11px}
+ .compact-workspace .navigation-row{gap:5px}
+ .compact-workspace .navigation-row .zoom-toolbar{gap:4px}
+ .compact-workspace .zoom-toolbar select{width:78px}
+ .compact-workspace .zoom-toolbar .zoom-step{width:23px;min-width:23px}
+ .compact-workspace .top-actions{gap:3px}
+ .compact-workspace .detail-card-head{gap:3px}
+}
