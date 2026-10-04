@@ -2,6 +2,8 @@
 
 A browser-based depth-map editor that turns depth data into selective black-and-white focus planes, with adjustable depth blending, 3D plane rotation, and image-detail overlays.
 
+**Live demo:** https://depth.voshart.com/
+
 The core idea for using depth maps as a photographic editing medium was inspired by [Vathography](https://vathography.com/).
 
 ## Features
