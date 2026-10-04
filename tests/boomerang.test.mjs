@@ -35,4 +35,12 @@ for(const blend of ['multiply','overlay'])for(const opacity of [0,15,63,100]){
 const writer=new VideoMp4({width:320,height:240,fps:30,frames:30,codec:'avc'});
 assert.throws(()=>writer.finish(),/complete/);
 assert.throws(()=>new VideoMp4({width:320,height:240,fps:30,frames:1801,codec:'avc'}),/configuration/);
-console.log('PASS: timing, symmetric loop, even padding, limits, immutable snapshots, plane translation, compact details, MP4 validation');
+const changing=new VideoMp4({width:320,height:240,fps:30,frames:4,codec:'avc'});
+const descA=Uint8Array.of(1,100,0,31,255,225,0,1,103,1,1,0,1,104),descB=Uint8Array.of(1,100,0,31,255,225,0,1,103,2,1,0,1,104);
+const fake=(frame,key=false)=>({timestamp:Math.round(frame*1e6/30),type:key?'key':'delta',byteLength:4,copyTo:dst=>dst.set([0,0,0,frame])});
+changing.add(fake(0,true),{decoderConfig:{description:descA}});
+changing.add(fake(1));changing.add(fake(2,true),{decoderConfig:{description:descB}});changing.add(fake(3));
+const changedBlob=changing.finish(),changedBytes=new Uint8Array(await changedBlob.arrayBuffer()),changedText=Buffer.from(changedBytes).toString('latin1');
+assert.equal((changedText.match(/avcC/g)||[]).length,2);
+const stco=changedText.indexOf('stco');assert(stco>0);assert.equal(new DataView(changedBytes.buffer,changedBytes.byteOffset).getUint32(stco+8),2);
+console.log('PASS: timing, symmetric loop, even padding, limits, immutable snapshots, plane translation, compact details, MP4 config changes and validation');

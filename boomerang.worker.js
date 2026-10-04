@@ -1,6 +1,6 @@
 import { videoPlan, frameParams, supportedConfig, MAX_VIDEO_BYTES } from './boomerang-core.js?v=20261004-3';
 import { compileInputs, renderFrame, paintFrame } from './boomerang-render.js?v=20261004-3';
-import { VideoMp4 } from './mp4.js?v=20261004-3';
+import { VideoMp4 } from './mp4.js?v=20261004-4';
 
 const timeout = (promise, ms, message) => new Promise((resolve, reject) => {
   const timer = setTimeout(() => reject(new Error(message)), ms);
@@ -46,6 +46,8 @@ self.onmessage = async ({ data }) => {
       paintFrame(ctx, renderFrame(cache, snapshot, frameParams(snapshot, plan, k / plan.frames), plan), plan);
       const timestamp = Math.round(k * 1e6 / plan.fps), end = Math.round((k + 1) * 1e6 / plan.fps);
       const frame = new VideoFrame(canvas, { timestamp, duration: end - timestamp });
+      // Android hardware encoders can emit a fresh decoderConfig at a later keyframe.
+      // The MP4 writer now starts a new sample-description chunk when that happens.
       try { encoder.encode(frame, { keyFrame: k % (plan.fps * 2) === 0 }); } finally { frame.close(); }
       // Fail early on drivers that claim support but cannot encode the first frame.
       if (k === 0) await timeout(encoder.flush(), 30000, 'The browser could not encode the first frame. Try a smaller size.');

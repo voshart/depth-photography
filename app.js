@@ -1419,7 +1419,7 @@ videoButton.addEventListener('click', async () => {
  if (!ready || working || exporting) return;
  exporting = true; version++; setBusy(true, 'Animation settings open…');
  try {
-  const { openBoomerang } = await import('./boomerang.js?v=20261004-3');
+  const { openBoomerang } = await import('./boomerang.js?v=20261004-4');
   const detailSettings = detailSettingsSnapshot(), mix = depthMixSnapshot();
   const snapshot = { params: snapshotParams(), mode: resolvedMode, width: sourceWidth, height: sourceHeight, name: sourceName, sourceVersion: loadToken, focus: activeFocus, previewWidth, previewHeight, details: detailSettings, depthMix: mix, depth2Mode: secondaryDepth.mode };
   await openBoomerang({
