@@ -1,6 +1,6 @@
-import { videoPlan, frameParams, supportedConfig, MAX_VIDEO_BYTES } from './boomerang-core.js';
-import { compileInputs, renderFrame, paintFrame } from './boomerang-render.js';
-import { VideoMp4 } from './mp4.js';
+import { videoPlan, frameParams, supportedConfig, MAX_VIDEO_BYTES } from './boomerang-core.js?v=20261004-3';
+import { compileInputs, renderFrame, paintFrame } from './boomerang-render.js?v=20261004-3';
+import { VideoMp4 } from './mp4.js?v=20261004-3';
 
 const timeout = (promise, ms, message) => new Promise((resolve, reject) => {
   const timer = setTimeout(() => reject(new Error(message)), ms);
