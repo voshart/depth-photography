@@ -54,6 +54,7 @@
  .compact-workspace .top-actions #exportText:after{content:'PNG';font:600 11px/1 var(--sans)}
  .compact-workspace .top-actions #exportBtn{gap:4px;padding:5px 7px}
  .compact-workspace .top-actions #exportBtn svg{width:14px;height:14px}
+ .compact-workspace .top-actions #videoBtn{display:inline-flex;align-items:center;justify-content:center;min-width:43px;padding:5px 7px;font:600 11px/1 var(--sans)}
  .compact-workspace .viewport,.compact-workspace[data-advanced=true] .viewport{padding:6px}
  .compact-workspace .sidebar{max-height:calc(100dvh - 310px - env(safe-area-inset-top))}
  .compact-workspace[data-advanced=true] .sidebar{max-height:calc(100dvh - 356px - env(safe-area-inset-top))}
@@ -95,5 +96,6 @@
  .compact-workspace .zoom-toolbar select{width:78px}
  .compact-workspace .zoom-toolbar .zoom-step{width:23px;min-width:23px}
  .compact-workspace .top-actions{gap:3px}
+ .compact-workspace .top-actions #videoBtn{min-width:39px;padding-inline:5px}
  .compact-workspace .detail-card-head{gap:3px}
 }
