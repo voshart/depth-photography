@@ -14,8 +14,13 @@ jobs:
         run: |
           node tests/wasm.test.mjs
           node tests/boomerang.test.mjs
+          node tests/detail-lookup.test.mjs
+          node tests/preview-buffer.test.mjs
+          node tests/preview-scheduler.test.mjs
       - name: Rebuild Rust WASM
         run: |
           rustup toolchain install 1.99.0 --profile minimal --target wasm32-unknown-unknown
           sh scripts/build-wasm.sh
           node tests/wasm.test.mjs
+          node tests/detail-lookup.test.mjs
+          node tests/preview-buffer.test.mjs

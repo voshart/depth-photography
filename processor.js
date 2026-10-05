@@ -7,6 +7,7 @@ export function createProcessor(kernels = null) {
   let cube = null, pixels = null, values = null, detailPixels = [null,null], resolved = 'spectral';
   let secondPixels=null, secondValues=null, secondMode='gray', mixCache=null, mixCacheKey='';
   let frameWidth=0,frameHeight=0,toneCache=null,toneCacheKey='';
+  const detailTables=new Map(),detailCoverage=new WeakMap();
   const clamp=(x,a=0,b=1)=>Math.min(b,Math.max(a,x));
   const smooth=x=>x*x*(3-2*x);
   function hue(r,g,b) {
@@ -108,15 +109,15 @@ export function createProcessor(kernels = null) {
     return {normal,pivot,slide,constant,sx,sy};
   }
   function planeDistance(point,plane){return plane.normal[0]*point[0]+plane.normal[1]*point[1]+plane.normal[2]*point[2]-plane.constant;}
-  function applyFocus(data,depth,p,mode,width,height,offsetY=0,inPlace=false,retainInputs=false) {
+  function applyFocus(data,depth,p,mode,width,height,offsetY=0,inPlace=false,retainInputs=false,outputTarget=null) {
     const spatial=p.advanced&&mode!=='hue'&&(p.planes?.[0]?.enabled||(p.secondEnabled&&p.planes?.[1]?.enabled));
-    if(!spatial)return applyFlat(data,depth,p,mode,inPlace,retainInputs);
+    if(!spatial)return applyFlat(data,depth,p,mode,inPlace,retainInputs,outputTarget);
     if(!Number.isInteger(width)||!Number.isInteger(height)||width<1||height<1||data.length%(4*width)!==0||!Number.isInteger(offsetY)||offsetY<0||offsetY+data.length/(4*width)>height)
       throw new Error('Invalid frame coordinates for 3D plane rendering.');
     const a=focusPlane(p,0,mode,width,height),b=focusPlane(p,1,mode,width,height);
     // At zero rotation this is exactly the original flat-band calculation.
     if(a.normal[0]===0&&a.normal[1]===0&&a.normal[2]===1&&(!p.secondEnabled||b.normal[0]===0&&b.normal[1]===0&&b.normal[2]===1))
-      return applyFlat(data,depth,{...p,center:(a.constant+.5)*100,center2:(b.constant+.5)*100},mode,inPlace,retainInputs);
+      return applyFlat(data,depth,{...p,center:(a.constant+.5)*100,center2:(b.constant+.5)*100},mode,inPlace,retainInputs,outputTarget);
     // Plane position/rotation changes do not change the tone curve. Reuse it
     // while scrubbing or exporting an animation instead of 65,536 powers/frame.
     const key=[p.profile,p.contrast,p.lift,p.background,p.invert].join('|');
@@ -126,8 +127,8 @@ export function createProcessor(kernels = null) {
     }
     const toneTable=toneCache;
     if(kernels && depth.length===data.length/4 && data.length>=65536)
-      return kernels.spatial(data,depth,toneTable,p,a,b,width,height,offsetY,inPlace);
-    const out=inPlace?data:new Uint8ClampedArray(data.length);
+      return kernels.spatial(data,depth,toneTable,p,a,b,width,height,offsetY,inPlace,outputTarget);
+    const out=inPlace?data:outputTarget||new Uint8ClampedArray(data.length);
     const noDepth=Math.round(clamp(shapeTone(0,p))*255),rows=data.length/(4*width),lastInv=1/LAST;
     // Full-frame coordinates make strip exports agree with a one-pass render.
     for(let y=0,pos=0;y<rows;y++){
@@ -148,10 +149,10 @@ export function createProcessor(kernels = null) {
     return out;
   }
 
-  function applyFlat(data,depth,p,mode,inPlace,retainInputs) {
+  function applyFlat(data,depth,p,mode,inPlace,retainInputs,outputTarget) {
     if(kernels && depth.length===data.length/4 && data.length>=65536)
-      return kernels.flat(data,depth,p,mode,inPlace,retainInputs);
-    return apply(data,depth,lookup(p,mode),inPlace);
+      return kernels.flat(data,depth,p,mode,inPlace,retainInputs,outputTarget);
+    return apply(data,depth,lookup(p,mode),inPlace,outputTarget);
   }
   function lookup(params,mode) {
     const table=new Uint8Array(SIZE);
@@ -159,8 +160,8 @@ export function createProcessor(kernels = null) {
     table[INVALID]=Math.round((params.invert?1-params.background/100:params.background/100)*255);
     return table;
   }
-  function apply(data,depth,table,inPlace=false) {
-    const out=inPlace?data:new Uint8ClampedArray(data.length);
+  function apply(data,depth,table,inPlace=false,outputTarget=null) {
+    const out=inPlace?data:outputTarget||new Uint8ClampedArray(data.length);
     for(let p=0,i=0;i<data.length;i+=4,p++){const v=table[depth[p]];out[i]=v;out[i+1]=v;out[i+2]=v;out[i+3]=data[i+3];}
     return out;
   }
@@ -171,16 +172,48 @@ export function createProcessor(kernels = null) {
     }
     return data;
   }
-  function blendDetail(base,texture,settings,compact=false) {
+  function detailTable(opacity,overlay) {
+    const key=opacity+'|'+overlay;
+    if(detailTables.has(key))return detailTables.get(key);
+    const table=new Uint8Array(65536);
+    for(let b8=0;b8<256;b8++)for(let d8=0;d8<256;d8++) {
+      const b=b8/255,d=d8/255;
+      const mixed=overlay?(b<=.5?2*b*d:1-2*(1-b)*(1-d)):b*d;
+      table[b8*256+d8]=Math.round(clamp(b+opacity*(mixed-b))*255);
+    }
+    // Two active layers plus two recent settings. Never grow during long scrubs.
+    if(detailTables.size===4)detailTables.delete(detailTables.keys().next().value);
+    detailTables.set(key,table);return table;
+  }
+  function opaqueDetail(texture,compact) {
+    const cached=detailCoverage.get(texture);if(cached)return cached;
+    let opaque=0,visible=0;const stride=compact?2:4;
+    for(let i=stride-1;i<texture.length;i+=stride){if(texture[i])visible++;if(texture[i]===255)opaque++;}
+    const result={empty:visible===0,fast:visible>0&&opaque/visible>=.8};
+    detailCoverage.set(texture,result);return result;
+  }
+  function blendDetail(base,texture,settings,compact=false,retainTexture=false) {
     if(!texture||!settings||!settings.enabled||!(settings.opacity>0))return base;
     if(texture.length!==(compact?base.length/2:base.length))throw new Error('The detail layer must be aligned to the depth image.');
     const opacity=clamp(settings.opacity/100,0,1),overlay=settings.blend==='overlay';
+    const table=base.length>=65536?detailTable(opacity,overlay):null;
+    // Only immutable prepared textures can reuse coverage metadata. Mostly
+    // semi-transparent textures measured faster in JS than the WASM copy path.
+    if(kernels&&table&&retainTexture){
+      const coverage=opaqueDetail(texture,compact);
+      if(coverage.empty)return base;
+      if(coverage.fast)return kernels.detail(base,texture,table,compact,opacity,overlay,true);
+    }
     // Work in the same display-referred, 8-bit space as the focus image.
     // Interpolate the blend result with the base. Preserve depth alpha exactly.
     // A transparent detail pixel or an uncovered Fit margin has no effect.
     for(let i=0;i<base.length;i+=4) {
       const j=compact?i/2:i,alpha=texture[j+(compact?1:3)];
       if(!base[i+3]||!alpha)continue;
+      if(alpha===255&&table){
+        base[i]=base[i+1]=base[i+2]=table[base[i]*256+texture[j]];
+        continue;
+      }
       const b=base[i]/255,d=texture[j]/255,a=opacity*alpha/255;
       const mixed=overlay?(b<=.5?2*b*d:1-2*(1-b)*(1-d)):b*d;
       const value=Math.round(clamp(b+a*(mixed-b))*255);
@@ -247,8 +280,10 @@ export function createProcessor(kernels = null) {
     }
     if(type==='render') {
       if(!pixels || !values)throw new Error('Load an image first.');
-      const output=applyFocus(pixels,mixedValues(payload.depthMix),payload.params,resolved,frameWidth,frameHeight,0,false,true);
-      for(let i=0;i<2;i++)blendDetail(output,detailPixels[i],payload.details?.[i]);
+      const target=payload.outputBuffer?new Uint8ClampedArray(payload.outputBuffer):null;
+      if(target&&target.length!==pixels.length)throw new Error('The reusable preview buffer has the wrong size.');
+      const output=applyFocus(pixels,mixedValues(payload.depthMix),payload.params,resolved,frameWidth,frameHeight,0,false,true,target);
+      for(let i=0;i<2;i++)blendDetail(output,detailPixels[i],payload.details?.[i],false,true);
       return {buffer:output.buffer};
     }
     if(type==='exportStrip') {

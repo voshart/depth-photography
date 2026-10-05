@@ -1,4 +1,4 @@
-/* Successive focus positions, retained preview inputs, and full request/response copies. */
+/* Successive focus positions, retained preview inputs, and processor output copies (worker transport and Canvas are excluded). */
 import { readFile } from 'node:fs/promises';
 import { performance } from 'node:perf_hooks';
 import { createProcessor } from '../processor.js';
@@ -14,10 +14,10 @@ for(const [w,h] of [[960,640],[1500,1000]]) {
   p.process('prepare',{buffer:data.slice().buffer,width:w,height:h,encoding:'gray'});
   const start=performance.now();p.process('render',{params});const first=performance.now()-start;
   for(let frame=0;frame<12;frame++)p.process('render',{params:{...params,center:frame*100/12}});
-  const times=[];
+  const times=[];let outputBuffer=null;
   for(let frame=0;frame<120;frame++){
    const start=performance.now();
-   p.process('render',{params:{...params,center:frame*100/119}});
+   outputBuffer=p.process('render',{params:{...params,center:frame*100/119},outputBuffer}).buffer;
    times.push(performance.now()-start);
   }
   console.log(`${w}x${h} ${name} full slider render: first ${first.toFixed(2)} ms, ${JSON.stringify(stats(times))}`);

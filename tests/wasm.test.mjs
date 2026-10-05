@@ -6,6 +6,7 @@ export const load = () => readFile(new URL('../wasm/depth-kernels.wasm', import.
 const js=createProcessor(), wasm=await createAcceleratedProcessor(load);
 assert.equal(wasm.backend,'rust-wasm');
 assert.equal((await createAcceleratedProcessor(async()=>{throw new Error('fetch failed');})).backend,'javascript');
+assert.equal((await createAcceleratedProcessor(async()=>({instance:{exports:{memory:new WebAssembly.Memory({initial:1})}}}))).backend,'javascript');
 const w=257,h=129,n=w*h, data=new Uint8ClampedArray(n*4),texture=new Uint8ClampedArray(n*4),compact=new Uint8Array(n*2),depth=new Uint16Array(n);
 let seed=5;
 function random(){seed=(Math.imul(seed,1664525)+1013904223)>>>0;return seed;}

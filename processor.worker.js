@@ -1,5 +1,5 @@
 'use strict';
-import { createAcceleratedProcessor } from './processor-wasm.js?v=20261005-wasm2';
+import { createAcceleratedProcessor } from './processor-wasm.js?v=20261005-wasm3';
 
 const processor=await createAcceleratedProcessor();
 self.onmessage=event=>{

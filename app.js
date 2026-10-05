@@ -1,5 +1,6 @@
-import { createProcessor } from './processor.js?v=20261005-wasm2';
-import { createAcceleratedProcessor } from './processor-wasm.js?v=20261005-wasm2';
+import { createPreviewScheduler } from './preview-scheduler.js?v=20261005-wasm3';
+import { createProcessor } from './processor.js?v=20261005-wasm3';
+import { createAcceleratedProcessor } from './processor-wasm.js?v=20261005-wasm3';
 
 'use strict';
 /* DEPTH / FOCUS
@@ -33,6 +34,7 @@ const DETAIL_EXAMPLE = new URL('./assets/example-normal.jpg', import.meta.url).h
 
 
 const $=id=>document.getElementById(id);
+const setAttr=(node,name,value)=>{value=String(value);if(node.getAttribute(name)!==value)node.setAttribute(name,value);};
 const local=createProcessor();
 let fallbackProcessor=null;
 // Module workers keep rendering off the UI thread. If workers are disabled,
@@ -40,7 +42,7 @@ let fallbackProcessor=null;
 function createEngine() {
   let worker=null,sequence=0,pending=new Map();
   try {
-    worker=new Worker(new URL('./processor.worker.js?v=20261005-wasm2', import.meta.url),{type:'module'});
+    worker=new Worker(new URL('./processor.worker.js?v=20261005-wasm3', import.meta.url),{type:'module'});
     worker.onmessage=event=>{const {id,result,error}=event.data,item=pending.get(id);if(!item)return;pending.delete(id);error?item.reject(new Error(error)):item.resolve(result);};
     worker.onerror=event=>{event.preventDefault();for(const item of pending.values())item.reject(new Error('The image processor stopped. Try reloading the image or using a smaller file.'));pending.clear();worker.terminate();worker=null;};
   }catch(_){worker=null;}
@@ -68,7 +70,7 @@ const detailIndexForView=(v=view)=>v==='detail'?0:v==='detail2'?1:-1;
 const detailViewName=index=>index===1?'detail2':'detail';
 let params=makeParams(),encoding='auto',resolvedMode='spectral',histogram=new Array(256).fill(0),depthValues=null;
 let sourceImage=null,sourceWidth=0,sourceHeight=0,sourceName='depth-map-example.webp',previewWidth=0,previewHeight=0;
-let view='focus',split=50,picking=false,holdSource=false,ready=false,working=false,exporting=false,rendering=false,renderAgain=false,frameRequested=false,version=0;
+let view='focus',split=50,picking=false,holdSource=false,ready=false,working=false,exporting=false,version=0,previewEpoch=0;
 let loadToken=0,toastTimer=0,ringTimer=0,activePreset='sculpted',activeFocus=1;
 let pickedPoints={1:null,2:null};
 // UI-only state: a source point at the centre of the visible image window.
@@ -99,6 +101,7 @@ function graphTheme(){
 
 function toast(message,error=false){clearTimeout(toastTimer);$('toast').textContent=message;$('toast').classList.toggle('error',error);$('toast').classList.add('show');toastTimer=setTimeout(()=>$('toast').classList.remove('show'),error?6500:3500);}
 function setBusy(on,text='Processing…'){
+ if(on)previewEpoch++;
  working=on;$('busyOverlay').hidden=!on;$('busyText').textContent=text;
  const exportLocked=on||!ready||exporting;
  $('exportBtn').disabled=exportLocked;
@@ -106,7 +109,7 @@ function setBusy(on,text='Processing…'){
  for(const id of ['openBtn','exampleBtn','encoding','resetBtn','loadLookBtn'])$(id).disabled=on||exporting;
  syncDetailControls();syncDepthControls();syncPlaneControls();syncNavigation();
 }
-function touchSettings(){activePreset='';syncPreset();queueRender();}
+function touchSettings(){activePreset='';queueRender();}
 function syncPreset(){document.querySelectorAll('[data-preset]').forEach(b=>b.classList.toggle('active',b.dataset.preset===activePreset));}
 function syncControls(){
  for(const key of controls){
@@ -131,7 +134,7 @@ function syncControls(){
   $('swatch'+letter).style.background=hex;
   if(activeFocus===n){$('focusSwatch').style.background=hex;$('focusHex').textContent=hex;}
  }
- $('focusCardB').dataset.enabled=String(params.secondEnabled);
+ setAttr($('focusCardB'),'data-enabled',params.secondEnabled);
  $('curveCanvas').setAttribute('aria-valuenow',params[focusKey('center')].toFixed(1));
  $('curveCanvas').setAttribute('aria-label','Focus '+focusLetter()+' position on the palette. Drag to move the active band, or drag its edges to change width.');
  $('paletteLeft').textContent=resolvedMode==='gray'?'BLACK':resolvedMode==='hue'?'0° · HUE':'PALETTE START';
@@ -140,8 +143,11 @@ function syncControls(){
 }
 
 
+let depthControlsKey='',detailControlsKey='';
 function syncDepthControls(){
  const layer=secondaryDepth,s=layer.settings,has=Boolean(layer.image),locked=working||exporting,compatible=depthMixCompatible();
+ const key=JSON.stringify([locked,ready,has,sourceName,sourceWidth,sourceHeight,layer.name,layer.width,layer.height,layer.mode,encoding,resolvedMode,depthPreview,s]);
+ if(depthControlsKey===key)return;depthControlsKey=key;
  $('depth2Enabled').checked=has&&s.enabled;$('depth2Enabled').disabled=!has||locked;
  const slider=$('depthWeight');slider.value=s.weight;slider.style.setProperty('--fill',s.weight+'%');slider.disabled=!has||locked;
  $('depthWeightValue').textContent=s.weight+'%';
@@ -260,6 +266,9 @@ function touchDepthMix(){
 
 function syncDetailControls(){
  const locked=working||exporting;
+ const key=JSON.stringify([locked,ready,activeDetail,sourceWidth,sourceHeight,
+   ...detailLayers.map(l=>[Boolean(l.image),l.width,l.height,l.name,l.settings])]);
+ if(detailControlsKey===key)return;detailControlsKey=key;
  detailLayers.forEach((layer,index)=>{
   const {settings,image,width,height,name}=layer,has=Boolean(image),id=stem=>detailId(stem,index);
   $(id('detailEnabled')).checked=has&&settings.enabled;
@@ -272,9 +281,9 @@ function syncDetailControls(){
   $(id('detailOptionsBtn')).disabled=locked;
   $(id('detailViewBtn')).disabled=!has||locked;
   $('detailSelect'+(index+1)).disabled=locked;
-  $('detailSelect'+(index+1)).setAttribute('aria-pressed',String(activeDetail===index));
+  setAttr($('detailSelect'+(index+1)),'aria-pressed',activeDetail===index);
   const card=$('detailCard'+(index+1));card.classList.toggle('selected',activeDetail===index);
-  card.dataset.active=String(has&&settings.enabled&&settings.opacity>0);
+  setAttr(card,'data-active',has&&settings.enabled&&settings.opacity>0);
   $(id('detailFileName')).textContent=has?name:'No image loaded';
   $(id('detailFileName')).title=has?name+' · '+width+' × '+height:'';
   $(id('detailState')).textContent=!has?'Empty':!settings.enabled?'Bypassed':settings.opacity===0?'0% · no effect':'Grayscale';
@@ -303,8 +312,11 @@ function selectDetailLayer(index){
  if(detailIndexForView()>=0)view=detailLayers[index].image?detailViewName(index):'focus';
  syncDetailControls();updateView();
 }
+let detailPaintRef=null,detailPaintWidth=0,detailPaintHeight=0,detailPaintValid=false;
 function paintDetailPreview(index){
  const data=detailLayers[index]?.previewData;
+ if(detailPaintValid&&data===detailPaintRef&&detailPaintWidth===previewWidth&&detailPaintHeight===previewHeight)return;
+ detailPaintValid=true;detailPaintRef=data;detailPaintWidth=previewWidth;detailPaintHeight=previewHeight;
  detailCtx.clearRect(0,0,previewWidth,previewHeight);
  if(data&&data.width===previewWidth&&data.height===previewHeight)detailCtx.putImageData(data,0,0);
 }
@@ -343,6 +355,7 @@ function drawDetailTo(ctx,image,width,height,fit,stripY=0,stripHeight=height){
  ctx.drawImage(image,r.x,r.y-stripY,r.w,r.h);
 }
 async function prepareDetailPreview(index=null){
+ detailPaintValid=false;
  if(detailCanvas.width!==previewWidth||detailCanvas.height!==previewHeight){
   detailCanvas.width=previewWidth;detailCanvas.height=previewHeight;
  }
@@ -615,8 +628,9 @@ function togglePicker(focus){
 function drawCurve(){
  const canvas=$('curveCanvas'),rect=canvas.getBoundingClientRect(),dpr=Math.min(window.devicePixelRatio||1,2);
  if(rect.width<1||rect.height<1)return;
- const w=rect.width,h=rect.height;canvas.width=Math.round(w*dpr);canvas.height=Math.round(h*dpr);
- const ctx=canvas.getContext('2d');ctx.scale(dpr,dpr);const theme=graphTheme();
+ const w=rect.width,h=rect.height,pixelW=Math.round(w*dpr),pixelH=Math.round(h*dpr);
+ if(canvas.width!==pixelW||canvas.height!==pixelH){canvas.width=pixelW;canvas.height=pixelH;}
+ const ctx=canvas.getContext('2d');ctx.setTransform(dpr,0,0,dpr,0,0);const theme=graphTheme();
  const left=8,right=w-8,top=15,base=h-24,bottom=h-7,pw=right-left,ph=base-top;
  ctx.fillStyle=theme.paper;ctx.fillRect(0,0,w,h);
  ctx.strokeStyle=theme.rule;ctx.lineWidth=1;
@@ -787,9 +801,9 @@ function updateView(){
  if(isDetail)$('detailLabel').textContent='Detail '+(detailIndex+1)+' · grayscale';
  const count=detailLayers.filter(l=>l.image&&l.settings.enabled&&l.settings.opacity>0).length;
  $('focusLabel').textContent=(params.secondEnabled?'Focus A + B':'Focus A')+(count?' · '+count+' detail'+(count>1?'s':''):'');
- document.querySelectorAll('[data-view]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.view===view)));
- $('pickBtn').setAttribute('aria-pressed',String(picking&&activeFocus===1));
- $('pickBtnB').setAttribute('aria-pressed',String(picking&&activeFocus===2));
+ document.querySelectorAll('[data-view]').forEach(b=>setAttr(b,'aria-pressed',b.dataset.view===view));
+ setAttr($('pickBtn'),'aria-pressed',picking&&activeFocus===1);
+ setAttr($('pickBtnB'),'aria-pressed',picking&&activeFocus===2);
  $('activeTarget').textContent=isDetail?'Grayscale':(picking?'Pick ':'Editing ')+focusLetter();
  $('activeTarget').style.color=activeFocus===2?'var(--focus-b)':'var(--focus-a)';
  $('imageFrame').style.cursor=isDetail?'default':'crosshair';
@@ -807,12 +821,21 @@ function updateView(){
  syncPins();syncNavigation();layoutComparison();
 }
 
-function queueRender(){version++;updateDepthMix();syncControls();updateView();if(!ready||working)return;renderAgain=true;if(frameRequested)return;frameRequested=true;requestAnimationFrame(()=>{frameRequested=false;renderPreview();});}
-async function renderPreview(){
- if(rendering||!renderAgain||!ready||working)return;rendering=true;renderAgain=false;const currentVersion=version,token=loadToken;
- try{const result=await engine.request('render',{params:snapshotParams(),details:detailSettingsSnapshot(),depthMix:depthMixSnapshot()});if(token===loadToken&&currentVersion===version){outputCtx.putImageData(new ImageData(new Uint8ClampedArray(result.buffer),previewWidth,previewHeight),0,0);$('renderStatus').textContent='Live preview';}}
- catch(error){toast(error.message,true);}finally{rendering=false;if(renderAgain&&!working)requestAnimationFrame(renderPreview);}
-}
+let previewBuffer=null;
+const previewScheduler=createPreviewScheduler({
+ frame:callback=>requestAnimationFrame(callback),
+ sync(){updateDepthMix();syncControls();updateView();},
+ ready:()=>ready&&!working,
+ epoch:()=>previewEpoch,
+ render(){
+  const buffer=previewBuffer;previewBuffer=null;
+  const outputBuffer=buffer?.byteLength===previewWidth*previewHeight*4?buffer:null;
+  return engine.request('render',{params:snapshotParams(),details:detailSettingsSnapshot(),depthMix:depthMixSnapshot(),outputBuffer},outputBuffer?[outputBuffer]:[]);
+ },
+ paint(result){outputCtx.putImageData(new ImageData(new Uint8ClampedArray(result.buffer),previewWidth,previewHeight),0,0);previewBuffer=result.buffer;$('renderStatus').textContent='Live preview';},
+ error:error=>toast(error.message,true)
+});
+function queueRender(){version++;previewScheduler.request();}
 function showRing(x,y){clearTimeout(ringTimer);$('pickRing').style.left=(x*100)+'%';$('pickRing').style.top=(y*100)+'%';$('pickRing').style.display='block';ringTimer=setTimeout(()=>$('pickRing').style.display='none',1100);}
 function pickAt(event,finish=false){
  if(!ready||working||exporting||(detailIndexForView()>=0&&!picking&&!holdSource))return;
@@ -1050,7 +1073,7 @@ for(const key of controls)$(key).addEventListener('input',()=>{
  if(['center2','width2','softness2'].includes(key))activeFocus=2;
  params[key]=Number($(key).value);
  if(key==='center'||key==='center2')setPlaneCenter(params[key],activeFocus);
- updateView();touchSettings();
+ touchSettings();
 });
 $('secondEnabled').addEventListener('change',()=>{
  if(working||exporting){syncControls();return;}
@@ -1421,7 +1444,7 @@ videoButton.addEventListener('click', async () => {
  if (!ready || working || exporting) return;
  exporting = true; version++; setBusy(true, 'Animation settings open…');
  try {
-  const { openBoomerang } = await import('./boomerang.js?v=20261005-wasm2');
+  const { openBoomerang } = await import('./boomerang.js?v=20261005-wasm3');
   const detailSettings = detailSettingsSnapshot(), mix = depthMixSnapshot();
   const snapshot = { params: snapshotParams(), mode: resolvedMode, width: sourceWidth, height: sourceHeight, name: sourceName, sourceVersion: loadToken, focus: activeFocus, previewWidth, previewHeight, details: detailSettings, depthMix: mix, depth2Mode: secondaryDepth.mode };
   await openBoomerang({

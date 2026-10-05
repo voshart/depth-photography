@@ -82,3 +82,37 @@ pub unsafe extern "C" fn flat(rgba: *mut u32, depth: *const u16, config: *const 
         *pixel = (*pixel & 0xff000000) | table.get(d as usize).copied().unwrap_or(0);
     }
 }
+
+// Independent workspaces keep detail passes from evicting retained focus inputs.
+thread_local! { static TEXTURE_ARENAS: RefCell<[Vec<u64>; 2]> = const { RefCell::new([Vec::new(),Vec::new()]) }; }
+#[no_mangle]
+pub extern "C" fn reserve_texture(bytes: usize, slot: usize) -> *mut u64 {
+    TEXTURE_ARENAS.with(|arenas| {
+        let mut arenas=arenas.borrow_mut();let arena=&mut arenas[slot.min(1)];
+        arena.resize(bytes.div_ceil(8),0);arena.as_mut_ptr()
+    })
+}
+thread_local! { static DETAIL_OUTPUT: RefCell<Vec<u64>> = const { RefCell::new(Vec::new()) }; }
+#[no_mangle]
+pub extern "C" fn reserve_detail(bytes: usize) -> *mut u64 {
+    DETAIL_OUTPUT.with(|arena|{let mut arena=arena.borrow_mut();arena.resize(bytes.div_ceil(8),0);arena.as_mut_ptr()})
+}
+#[no_mangle]
+pub unsafe extern "C" fn detail_lookup(rgba: *mut u32, texture: *const u8, table: *const u8,
+    count: usize, stride: usize, opacity: f64, overlay: usize) {
+    let out=std::slice::from_raw_parts_mut(rgba,count);
+    let tex=std::slice::from_raw_parts(texture,count*stride);
+    let table=std::slice::from_raw_parts(table,65536);
+    for (i,pixel) in out.iter_mut().enumerate() {
+        let alpha=tex[i*stride+stride-1];
+        if *pixel>>24==0 || alpha==0 { continue; }
+        let b8=(*pixel&255) as usize;let d8=tex[i*stride] as usize;
+        let v=if alpha==255 { table[b8*256+d8] } else {
+            let b=b8 as f64/255.0;let d=d8 as f64/255.0;
+            let a=opacity*alpha as f64/255.0;
+            let mixed=if overlay==0 { b*d } else if b<=0.5 { 2.0*b*d } else { 1.0-2.0*(1.0-b)*(1.0-d) };
+            byte((b+a*(mixed-b)).clamp(0.0,1.0)*255.0)
+        };
+        *pixel=(*pixel&0xff000000) | v as u32*0x010101;
+    }
+}
