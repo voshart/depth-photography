@@ -1,7 +1,7 @@
 'use strict';
-import { createProcessor } from './processor.js?v=20261004-3';
+import { createAcceleratedProcessor } from './processor-wasm.js?v=20261005-wasm3';
 
-const processor=createProcessor();
+const processor=await createAcceleratedProcessor();
 self.onmessage=event=>{
   const {id,type,payload}=event.data;
   try{

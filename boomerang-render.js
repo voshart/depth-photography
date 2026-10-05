@@ -1,5 +1,5 @@
 /* Native-size animation cache. Decode and align once; never store raw frame lists. */
-import { createProcessor } from './processor.js?v=20261004-3';
+import { createAcceleratedProcessor } from './processor-wasm.js?v=20261005-wasm3';
 const pause = () => new Promise(resolve => setTimeout(resolve, 0));
 function aligned(ctx, image, w, h, fit, y, rows) {
   ctx.clearRect(0, 0, w, rows);
@@ -13,7 +13,7 @@ function aligned(ctx, image, w, h, fit, y, rows) {
   return ctx.getImageData(0, 0, w, rows).data;
 }
 export async function compileInputs(snapshot, plan, images, progress = () => {}) {
-  const p = createProcessor(), { width: w, height: h } = plan, count = w * h;
+  const p = await createAcceleratedProcessor(), { width: w, height: h } = plan, count = w * h;
   if (typeof p.decode !== 'function') throw new Error('The animation processor is out of date. Reload the page after the current deployment finishes.');
   const depth = new Uint16Array(count), alpha = new Uint8Array(count);
   const details = images.details.map(image => image ? new Uint8Array(count * 2) : null);
@@ -50,8 +50,9 @@ export async function compileInputs(snapshot, plan, images, progress = () => {})
 export function renderFrame(cache, snapshot, params, plan, flatten = true) {
   const data = cache.frame.data, p = cache.processor;
   for (let i = 0; i < cache.alpha.length; i++) data[i * 4 + 3] = cache.alpha[i];
-  p.applyFocus(data, cache.depth, params, snapshot.mode, plan.width, plan.height, 0, true);
-  for (let i = 0; i < 2; i++) p.blendDetail(data, cache.details[i], snapshot.details[i], true);
+  // depth and restored source alpha stay unchanged throughout this clip.
+  p.applyFocus(data, cache.depth, params, snapshot.mode, plan.width, plan.height, 0, true, true);
+  for (let i = 0; i < 2; i++) p.blendDetail(data, cache.details[i], snapshot.details[i], true, true);
   if (flatten) for (let i = 0; i < data.length; i += 4) {
     data[i] = data[i + 1] = data[i + 2] = Math.round(data[i] * data[i + 3] / 255); data[i + 3] = 255;
   }
