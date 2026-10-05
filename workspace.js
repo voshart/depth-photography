@@ -2,7 +2,7 @@
  * do not duplicate depth state, image buffers, processing or export code.
  * This import also ensures the editor has installed its event handlers first.
  */
-import './app.js?v=20261004-4';
+import './app.js?v=20261005-wasm1';
 
 const $ = id => document.getElementById(id);
 const toolbar = document.querySelector('.preview-toolbar');

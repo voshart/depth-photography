@@ -1,4 +1,5 @@
-import { createProcessor } from './processor.js?v=20261004-3';
+import { createProcessor } from './processor.js?v=20261005-wasm1';
+import { createAcceleratedProcessor } from './processor-wasm.js?v=20261005-wasm1';
 
 'use strict';
 /* DEPTH / FOCUS
@@ -33,16 +34,17 @@ const DETAIL_EXAMPLE = new URL('./assets/example-normal.jpg', import.meta.url).h
 
 const $=id=>document.getElementById(id);
 const local=createProcessor();
-// Blob workers are self-contained and work from file://. A synchronous fallback
-// also supports browsers that disable workers in local documents.
+let fallbackProcessor=null;
+// Module workers keep rendering off the UI thread. If workers are disabled,
+// lazily initialize the same accelerated processor on the main thread.
 function createEngine() {
   let worker=null,sequence=0,pending=new Map();
   try {
-    worker=new Worker(new URL('./processor.worker.js?v=20261004-3', import.meta.url),{type:'module'});
+    worker=new Worker(new URL('./processor.worker.js?v=20261005-wasm1', import.meta.url),{type:'module'});
     worker.onmessage=event=>{const {id,result,error}=event.data,item=pending.get(id);if(!item)return;pending.delete(id);error?item.reject(new Error(error)):item.resolve(result);};
     worker.onerror=event=>{event.preventDefault();for(const item of pending.values())item.reject(new Error('The image processor stopped. Try reloading the image or using a smaller file.'));pending.clear();worker.terminate();worker=null;};
   }catch(_){worker=null;}
-  return {request(type,payload,transfer=[]){if(!worker)return Promise.resolve().then(()=>local.process(type,payload));return new Promise((resolve,reject)=>{const id=++sequence;pending.set(id,{resolve,reject});worker.postMessage({id,type,payload},transfer);});}};
+  return {request(type,payload,transfer=[]){if(!worker)return (fallbackProcessor ||= createAcceleratedProcessor()).then(processor=>processor.process(type,payload));return new Promise((resolve,reject)=>{const id=++sequence;pending.set(id,{resolve,reject});worker.postMessage({id,type,payload},transfer);});}};
 }
 const engine=createEngine();
 const defaults={center:21.5,width:18,softness:94,center2:65,width2:18,softness2:94,secondEnabled:false,contrast:1.2,lift:1,background:0,profile:'band',invert:false,reverse:false};
@@ -1419,7 +1421,7 @@ videoButton.addEventListener('click', async () => {
  if (!ready || working || exporting) return;
  exporting = true; version++; setBusy(true, 'Animation settings open…');
  try {
-  const { openBoomerang } = await import('./boomerang.js?v=20261004-4');
+  const { openBoomerang } = await import('./boomerang.js?v=20261005-wasm1');
   const detailSettings = detailSettingsSnapshot(), mix = depthMixSnapshot();
   const snapshot = { params: snapshotParams(), mode: resolvedMode, width: sourceWidth, height: sourceHeight, name: sourceName, sourceVersion: loadToken, focus: activeFocus, previewWidth, previewHeight, details: detailSettings, depthMix: mix, depth2Mode: secondaryDepth.mode };
   await openBoomerang({

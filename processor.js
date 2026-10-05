@@ -1,12 +1,12 @@
 'use strict';
 
-export function createProcessor() {
+export function createProcessor(kernels = null) {
   const SIZE = 16384, LAST = SIZE - 2, INVALID = SIZE - 1;
   const spectral = [[158,1,66],[213,62,79],[244,109,67],[253,174,97],[254,224,139],[255,255,191],[230,245,152],[171,221,164],[102,194,165],[50,136,189],[94,79,162]];
   const segments = spectral.slice(0,-1).map((p,i) => {const q=spectral[i+1],v=q.map((x,j)=>x-p[j]);return {p,v,d:v.reduce((s,x)=>s+x*x,0)};});
   let cube = null, pixels = null, values = null, detailPixels = [null,null], resolved = 'spectral';
   let secondPixels=null, secondValues=null, secondMode='gray', mixCache=null, mixCacheKey='';
-  let frameWidth=0,frameHeight=0;
+  let frameWidth=0,frameHeight=0,toneCache=null,toneCacheKey='';
   const clamp=(x,a=0,b=1)=>Math.min(b,Math.max(a,x));
   const smooth=x=>x*x*(3-2*x);
   function hue(r,g,b) {
@@ -117,8 +117,17 @@ export function createProcessor() {
     // At zero rotation this is exactly the original flat-band calculation.
     if(a.normal[0]===0&&a.normal[1]===0&&a.normal[2]===1&&(!p.secondEnabled||b.normal[0]===0&&b.normal[1]===0&&b.normal[2]===1))
       return apply(data,depth,lookup({...p,center:(a.constant+.5)*100,center2:(b.constant+.5)*100},mode),inPlace);
-    const out=inPlace?data:new Uint8ClampedArray(data.length),toneTable=new Uint8Array(65536);
-    for(let i=0;i<65536;i++)toneTable[i]=Math.round(clamp(shapeTone(i/65535,p))*255);
+    // Plane position/rotation changes do not change the tone curve. Reuse it
+    // while scrubbing or exporting an animation instead of 65,536 powers/frame.
+    const key=[p.profile,p.contrast,p.lift,p.background,p.invert].join('|');
+    if(!toneCache || toneCacheKey!==key){
+      toneCache=new Uint8Array(65536);toneCacheKey=key;
+      for(let i=0;i<65536;i++)toneCache[i]=Math.round(clamp(shapeTone(i/65535,p))*255);
+    }
+    const toneTable=toneCache;
+    if(kernels && depth.length===data.length/4 && data.length>=65536)
+      return kernels.spatial(data,depth,toneTable,p,a,b,width,height,offsetY,inPlace);
+    const out=inPlace?data:new Uint8ClampedArray(data.length);
     const noDepth=Math.round(clamp(shapeTone(0,p))*255),rows=data.length/(4*width),lastInv=1/LAST;
     // Full-frame coordinates make strip exports agree with a one-pass render.
     for(let y=0,pos=0;y<rows;y++){
@@ -253,5 +262,5 @@ export function createProcessor() {
     }
     throw new Error('Unknown processing operation.');
   }
-  return {process,decode,tone,colour,grayscale,blendDetail,blendDepth,planeNormal,focusPlane,planeDistance,windowValue,shapeTone,applyFocus,LAST,INVALID};
+  return {backend:kernels?'rust-wasm':'javascript',process,decode,tone,colour,grayscale,blendDetail,blendDepth,planeNormal,focusPlane,planeDistance,windowValue,shapeTone,applyFocus,LAST,INVALID};
 }

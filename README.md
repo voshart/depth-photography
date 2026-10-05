@@ -65,6 +65,8 @@ The site is dependency-free and designed for static hosting:
 - `app.js` — UI state, canvas interaction, import/export and orchestration
 - `processor.js` — shared depth and pixel-processing implementation
 - `processor.worker.js` — worker entry point for off-main-thread still processing
+- `processor-wasm.js` / `wasm/depth-kernels.wasm` — optional Rust acceleration for rotated 3D planes
+- `rust/` — dependency-free Rust source; `scripts/build-wasm.sh` rebuilds the shipped binary
 - `boomerang.js` / `boomerang.css` — lazy-loaded animation dialog and controller
 - `boomerang-core.js` — timing, endpoints, output sizing and codec capability checks
 - `boomerang-render.js` — native-resolution depth/detail cache and frame rendering
@@ -94,6 +96,7 @@ Pure animation, validation and detail-blending tests (Node.js 22 or later):
 
 ```sh
 node tests/boomerang.test.mjs
+node tests/wasm.test.mjs
 ```
 
 Optional real AVC/HEVC packet round-trip tests, requiring local FFmpeg/ffprobe with libx264 and libx265:
@@ -103,6 +106,53 @@ node tests/mp4-roundtrip.mjs
 ```
 
 The round-trip test verifies frame count, dimensions, duration, fast-start placement and identical decoded pixels, including reordered H.264 frames. It does not establish WebCodecs hardware support on a user's browser. Test an actual export on each target device.
+
+## Rust WebAssembly acceleration
+
+Rotated 3D focus planes use a small, local Rust/WASM pixel kernel for frames or
+strips of at least 16,384 pixels. The same backend is used by still preview,
+PNG export and MP4 rendering, with a reusable aligned scratch arena. Tone curves
+are cached until profile, contrast, lift, background or inversion changes.
+
+The interface, image decoding, flat/hue focus lookup, detail blending and browser
+video encoder remain JavaScript/browser APIs. Measurement showed that copying
+pixels into WASM made grayscale slower and did not materially improve detail
+blending, so those loops stay in JavaScript. A failed WASM download, blocked
+WebAssembly or an unsupported browser automatically uses the JavaScript backend.
+No image data leaves the browser, and there are no runtime dependencies or CDN
+requests. The initial download is approximately 21 KB.
+
+On a synthetic 1,500 × 1,000 image under Node 24/V8, a warm rotated two-plane
+render measured about **56 ms before → 26 ms after** (roughly **2.2× faster**).
+Including two detail overlays measured **110 ms → 88 ms** (roughly **1.3×**).
+These medians include WASM input/output copies; they exclude image decoding,
+Canvas drawing and WebCodecs encoding. Flat bands use the existing lookup loop
+and should not be expected to speed up. Device/browser performance will vary;
+these are processing measurements, not end-to-end export promises.
+
+Run the repeatable synthetic benchmark:
+
+```sh
+node tests/wasm-benchmark.mjs
+```
+
+The parity suite checks exact output bytes over 72 combinations of tone profiles,
+contrast, lift, inversion, two planes and ramp direction, plus preserved alpha,
+in-place rendering, strip coordinates, mixed depth and two detail layers.
+
+The compiled binary is committed, so static hosting still requires **no build
+step**. To rebuild it locally, install Rust/rustup; `rust-toolchain.toml` pins the
+compiler and WASM target:
+
+```sh
+sh scripts/build-wasm.sh
+node tests/wasm.test.mjs
+```
+
+The GitHub Actions processor check tests the shipped binary and rebuilds/tests
+the Rust source. Hosts without the WASM MIME type are supported through an
+ArrayBuffer loader. Allow WebAssembly execution in any custom Content Security
+Policy if you want acceleration; otherwise the JavaScript fallback remains usable.
 
 ## Cloudflare Pages
 
