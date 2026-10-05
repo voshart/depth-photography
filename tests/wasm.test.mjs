@@ -39,6 +39,21 @@ assert.deepEqual(wasm.applyFocus(data.slice(start*w*4,(start+rows)*w*4),depth.sl
 for(const mode of ['gray','hue','spectral']) {
  const p={...params,advanced:false};assert.deepEqual(wasm.applyFocus(data,depth,p,mode,w,h),js.applyFocus(data,depth,p,mode,w,h));
 }
+let flatCases=0;
+for(const mode of ['gray','hue','spectral'])for(const profile of ['band','mask','ramp'])
+for(const center of [0,21.5,50,100])for(const secondEnabled of [false,true])
+for(const reverse of [false,true]) {
+ const p={...params,advanced:false,mode,profile,center,secondEnabled,reverse,
+   invert:center===50,contrast:profile==='ramp'?.3:2.5,lift:profile==='band'?.3:1.7};
+ assert.deepEqual(wasm.applyFocus(data,depth,p,mode,w,h),js.applyFocus(data,depth,p,mode,w,h));
+ const inplace=data.slice();assert.equal(wasm.applyFocus(inplace,depth,p,mode,w,h,0,true),inplace);
+ assert.deepEqual(inplace,js.applyFocus(data,depth,p,mode,w,h));flatCases++;
+}
+// Without explicit immutable-input retention, changed buffers must be recopied.
+const mutable=data.slice(),changedDepth=depth.slice();
+wasm.applyFocus(mutable,changedDepth,{...params,advanced:false},'gray',w,h);
+mutable[3]=17;changedDepth[0]=4000;
+assert.deepEqual(wasm.applyFocus(mutable,changedDepth,{...params,advanced:false},'gray',w,h),js.applyFocus(mutable,changedDepth,{...params,advanced:false},'gray',w,h));
 const zero={...params,planes:params.planes.map(p=>({...p,yaw:0,pitch:0}))};
 assert.deepEqual(wasm.applyFocus(data,depth,zero,'gray',w,h),js.applyFocus(data,depth,zero,'gray',w,h));
 assert.throws(()=>wasm.applyFocus(data,depth,params,'gray',w,h,1),/coordinates/);
@@ -51,4 +66,14 @@ for(const p of [js,wasm]) {
 }
 const payload={params,depthMix:{enabled:true,weight:47,reverse:true},details:[{enabled:true,opacity:63,blend:'multiply'},{enabled:true,opacity:35,blend:'overlay'}]};
 assert.deepEqual(wasm.process('render',payload),js.process('render',payload));
-console.log(`PASS: ${cases} spatial variants, byte parity, alpha, in-place, strip coordinates, flat/hue fallback, worker operations and failed WASM load`);
+// Exercise the retained slider path, then force depth, alpha and arena invalidations.
+for(let i=0;i<12;i++) {
+ const frame={...payload,params:{...params,advanced:false,center:i*100/11},depthMix:{...payload.depthMix,weight:i<6?47:70}};
+ assert.deepEqual(wasm.process('render',frame),js.process('render',frame));
+ if(i===4)assert.deepEqual(wasm.process('render',payload),js.process('render',payload));
+}
+for(const p of [js,wasm])p.process('prepare',{buffer:texture.slice().buffer,width:w,height:h,encoding:'gray'});
+assert.deepEqual(wasm.process('render',{params:{...params,advanced:false}}),js.process('render',{params:{...params,advanced:false}}));
+const strip={buffer:data.slice().buffer,mode:'gray',params:{...params,advanced:false},width:w,height:h,offsetY:0};
+assert.deepEqual(wasm.process('exportStrip',{...strip,buffer:data.slice().buffer}),js.process('exportStrip',{...strip,buffer:data.slice().buffer}));
+console.log(`PASS: ${flatCases} flat/hue variants, retained slider inputs and invalidation; ${cases} spatial variants, byte parity, alpha, in-place, strip coordinates, flat/hue rendering, worker operations and failed WASM load`);

@@ -2,7 +2,7 @@ import { videoPlan, frameParams, bounceAt, endpointBounds, sweepEndpoints, curre
 
 let saved = { duration: 4, fps: 30, motion: 'ease', codec: 'avc', resolution: 'native', quality: 'high' };
 const endpoints = new Map();
-const workerURL = new URL('./boomerang.worker.js?v=20261005-wasm1', import.meta.url);
+const workerURL = new URL('./boomerang.worker.js?v=20261005-wasm2', import.meta.url);
 let stylesheet = null;
 function loadStyles() {
   if (!stylesheet) {

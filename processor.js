@@ -108,15 +108,15 @@ export function createProcessor(kernels = null) {
     return {normal,pivot,slide,constant,sx,sy};
   }
   function planeDistance(point,plane){return plane.normal[0]*point[0]+plane.normal[1]*point[1]+plane.normal[2]*point[2]-plane.constant;}
-  function applyFocus(data,depth,p,mode,width,height,offsetY=0,inPlace=false) {
+  function applyFocus(data,depth,p,mode,width,height,offsetY=0,inPlace=false,retainInputs=false) {
     const spatial=p.advanced&&mode!=='hue'&&(p.planes?.[0]?.enabled||(p.secondEnabled&&p.planes?.[1]?.enabled));
-    if(!spatial)return apply(data,depth,lookup(p,mode),inPlace);
+    if(!spatial)return applyFlat(data,depth,p,mode,inPlace,retainInputs);
     if(!Number.isInteger(width)||!Number.isInteger(height)||width<1||height<1||data.length%(4*width)!==0||!Number.isInteger(offsetY)||offsetY<0||offsetY+data.length/(4*width)>height)
       throw new Error('Invalid frame coordinates for 3D plane rendering.');
     const a=focusPlane(p,0,mode,width,height),b=focusPlane(p,1,mode,width,height);
     // At zero rotation this is exactly the original flat-band calculation.
     if(a.normal[0]===0&&a.normal[1]===0&&a.normal[2]===1&&(!p.secondEnabled||b.normal[0]===0&&b.normal[1]===0&&b.normal[2]===1))
-      return apply(data,depth,lookup({...p,center:(a.constant+.5)*100,center2:(b.constant+.5)*100},mode),inPlace);
+      return applyFlat(data,depth,{...p,center:(a.constant+.5)*100,center2:(b.constant+.5)*100},mode,inPlace,retainInputs);
     // Plane position/rotation changes do not change the tone curve. Reuse it
     // while scrubbing or exporting an animation instead of 65,536 powers/frame.
     const key=[p.profile,p.contrast,p.lift,p.background,p.invert].join('|');
@@ -148,6 +148,11 @@ export function createProcessor(kernels = null) {
     return out;
   }
 
+  function applyFlat(data,depth,p,mode,inPlace,retainInputs) {
+    if(kernels && depth.length===data.length/4 && data.length>=65536)
+      return kernels.flat(data,depth,p,mode,inPlace,retainInputs);
+    return apply(data,depth,lookup(p,mode),inPlace);
+  }
   function lookup(params,mode) {
     const table=new Uint8Array(SIZE);
     for(let i=0;i<=LAST;i++)table[i]=Math.round(clamp(tone(i/LAST,params,mode))*255);
@@ -242,7 +247,7 @@ export function createProcessor(kernels = null) {
     }
     if(type==='render') {
       if(!pixels || !values)throw new Error('Load an image first.');
-      const output=applyFocus(pixels,mixedValues(payload.depthMix),payload.params,resolved,frameWidth,frameHeight);
+      const output=applyFocus(pixels,mixedValues(payload.depthMix),payload.params,resolved,frameWidth,frameHeight,0,false,true);
       for(let i=0;i<2;i++)blendDetail(output,detailPixels[i],payload.details?.[i]);
       return {buffer:output.buffer};
     }

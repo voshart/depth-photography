@@ -60,3 +60,25 @@ pub unsafe extern "C" fn spatial(rgba: *mut u8, depth: *const u16, table: *const
         }
     }
 }
+
+/// Build the flat/hue tone lookup and apply it without crossing JS per pixel.
+/// Final config entries: centers A/B, hue flag. RGBA words are little-endian.
+#[no_mangle]
+pub unsafe extern "C" fn flat(rgba: *mut u32, depth: *const u16, config: *const f64, count: usize) {
+    let out = std::slice::from_raw_parts_mut(rgba, count);
+    let depth = std::slice::from_raw_parts(depth, count);
+    let c = std::slice::from_raw_parts(config, 24);
+    let mut table = [0u32; 16384];
+    for (i, slot) in table.iter_mut().enumerate().take(16383) {
+        let t = i as f64 / 16382.0;
+        let mut da = t-c[21]; let mut db = t-c[22];
+        if c[23]!=0.0 { da = ((da+1.5)%1.0)-0.5; db = ((db+1.5)%1.0)-0.5; }
+        let mut weight = window(da,c[10],c[13],c[12],c[19]!=0.0);
+        if c[20]!=0.0 { weight=weight.max(window(db,c[11],c[14],c[12],c[19]!=0.0)); }
+        *slot = shape(weight,c) as u32 * 0x010101;
+    }
+    table[16383] = shape(0.0,c) as u32 * 0x010101;
+    for (pixel, &d) in out.iter_mut().zip(depth) {
+        *pixel = (*pixel & 0xff000000) | table.get(d as usize).copied().unwrap_or(0);
+    }
+}
